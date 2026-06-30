@@ -1,0 +1,42 @@
+# Local environment
+.env
+.env.*
+
+# Local agent settings
+.claude/
+CLAUDE.md
+
+# Raw data
+data/
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Python/Jupyter cache
+__pycache__/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+**/.ipynb_checkpoints/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Logs
+*.log
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Tableau generated files
+tableau/*.csv
+tableau/BUILD_GUIDE.md
+tableau/*.twb
+tableau/*.twbx
