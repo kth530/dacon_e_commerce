@@ -2,6 +2,8 @@
 
 온라인 커머스 1년치(2019) 거래 데이터를 기반으로 고객 구매 패턴, 리텐션, RFM 등급을 분석하고, 등급별 고객 관리 우선순위를 도출한 데이터 분석 프로젝트.
 
+데이터 출처: [Dacon 이커머스 데이터셋](https://dacon.io/competitions/official/236222/data)
+
 ---
 
 ## 프로젝트 배경
@@ -74,11 +76,11 @@ dacon_e_commerce/
 
 ## 핵심 인사이트
 
-1. **매출은 소수 카테고리와 상위 고객군에 집중되어 있다** - Nest-USA 단일 카테고리가 전체 매출의 약 54%를 차지하고, Diamond/Platinum은 전체 고객의 약 14%지만 매출의 약 48%를 담당한다. _(`01_eda`, `03_rfm_segmentation`)_
-2. **첫 구매 이후 이탈 방어가 핵심 과제다** - 전체 코호트 리텐션은 낮고, +1개월 복귀율이 전 구간에서 낮게 나타난다. _(`02_retention`)_
-3. **고객 가치는 Recency만으로 설명되지 않는다** - Silver, Gold, Platinum에서 최근 구매가 줄어든 고객 중에도 구매금액이 높은 고객군이 확인된다. _(`05_segment_silver`, `06_segment_gold`, `07_segment_diamond_platinum`)_
-4. **등급별 관리 질문이 다르다** - Bronze는 재활성화, Silver는 Gold 전환, Gold는 이탈 방어와 Platinum 전환, Diamond/Platinum은 유지 전략이 핵심이다. _(`04_segment_bronze`~`07_segment_diamond_platinum`)_
-5. **단일 캠페인보다 세그먼트별 타이밍 분리가 필요하다** - 이탈 시점과 전환 가능성이 등급·세그먼트마다 다르게 나타난다. _(`04_segment_bronze`, `05_segment_silver`, `06_segment_gold`)_
+1. **매출은 소수 카테고리와 상위 고객군에 집중되어 있다** - Nest-USA 단일 카테고리가 전체 매출의 약 54%를 차지하고, Diamond/Platinum은 전체 고객의 약 14%지만 매출의 약 48%를 담당한다. ([01 EDA](notebooks/01_eda.ipynb), [03 RFM](notebooks/03_rfm_segmentation.ipynb))
+2. **첫 구매 이후 이탈 방어가 핵심 과제다** - 전체 코호트 리텐션은 낮고, +1개월 복귀율이 전 구간에서 낮게 나타난다. ([02 Retention](notebooks/02_retention.ipynb))
+3. **고객 가치는 Recency만으로 설명되지 않는다** - Silver, Gold, Platinum에서 최근 구매가 줄어든 고객 중에도 구매금액이 높은 고객군이 확인된다. ([05 Silver](notebooks/05_segment_silver.ipynb), [06 Gold](notebooks/06_segment_gold.ipynb), [07 Diamond·Platinum](notebooks/07_segment_diamond_platinum.ipynb))
+4. **등급별 관리 질문이 다르다** - Bronze는 재활성화, Silver는 Gold 전환, Gold는 이탈 방어와 Platinum 전환, Diamond/Platinum은 유지 전략이 핵심이다. ([04 Bronze](notebooks/04_segment_bronze.ipynb), [05 Silver](notebooks/05_segment_silver.ipynb), [06 Gold](notebooks/06_segment_gold.ipynb), [07 Diamond·Platinum](notebooks/07_segment_diamond_platinum.ipynb))
+5. **단일 캠페인보다 세그먼트별 타이밍 분리가 필요하다** - 이탈 시점과 전환 가능성이 등급·세그먼트마다 다르게 나타난다. ([04 Bronze](notebooks/04_segment_bronze.ipynb), [05 Silver](notebooks/05_segment_silver.ipynb), [06 Gold](notebooks/06_segment_gold.ipynb))
 
 ---
 
