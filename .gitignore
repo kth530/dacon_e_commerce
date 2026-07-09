@@ -38,5 +38,5 @@ env/
 # Tableau generated files
 tableau/*.csv
 tableau/BUILD_GUIDE.md
-tableau/*.twb
-tableau/*.twbx
+*.twb
+*.twbx

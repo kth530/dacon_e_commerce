@@ -10,6 +10,7 @@ import os
 import re
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
@@ -30,6 +31,40 @@ def load_queries(path):
     return {parts[i]: parts[i + 1].strip() for i in range(1, len(parts), 2)}
 
 
+def add_scatter_coords(df):
+    """노트북 03 산점도와 동일한 R_scale/F_scale/marker_size 부여.
+
+    R·F 점수(1~5) 밴드 안에서 각 고객을 실제 Recency/거래건수 위치에 배치하고
+    ±0.1 지터를 더해 판 전체에 부드럽게 흩뿌린다 (Tableau 산점도 좌표).
+    수식은 노트북 셀과 동일, 컬럼명만 CSV에 맞춤(Frequency→거래건수, Monetary→총지출).
+    """
+    df = df.copy()
+    r_intervals = pd.qcut(df['Recency'], q=[0, 0.2, 0.4, 0.6, 0.8, 1.0])
+    r_left = r_intervals.apply(lambda x: x.left).astype(float).clip(lower=0)
+    r_right = r_intervals.apply(lambda x: x.right).astype(float)
+    df['R_scale'] = (df['R'] - 1) + (df['Recency'] - r_left - 0.01) / (r_right - r_left) - 0.0001
+
+    f_q1 = df['거래건수'].quantile(0.25)
+    f_q2 = df['거래건수'].quantile(0.50)
+    f_q3 = df['거래건수'].quantile(0.75)
+    f_upper = f_q3 + 1.5 * (f_q3 - f_q1)
+    f_intervals = pd.cut(df['거래건수'], bins=[0, f_q1, f_q2, f_q3, f_upper, df['거래건수'].max()])
+    f_left = f_intervals.apply(lambda x: x.left).astype(float)
+    f_right = f_intervals.apply(lambda x: x.right).astype(float)
+    df['F_scale'] = (df['F'] - 1) + (df['거래건수'] - f_left - 0.01) / (f_right - f_left) - 0.0001
+
+    np.random.seed(42)
+    df['R_scale'] = (df['R_scale'] + np.random.uniform(-0.1, 0.1, len(df))).round(4)
+    df['F_scale'] = (df['F_scale'] + np.random.uniform(-0.1, 0.1, len(df))).round(4)
+
+    m_min = df['총지출'].min()
+    m_cap = df['총지출'].quantile(0.95)
+    df['marker_size'] = (
+        (df['총지출'].clip(upper=m_cap) - m_min) / (m_cap - m_min) * 16 + 4
+    ).round(0)
+    return df
+
+
 Q = load_queries(HERE / 'tableau_views.sql')
 
 # 1) VIEW 생성
@@ -46,12 +81,18 @@ exports = {
 }
 for fname, q in exports.items():
     df = pd.read_sql(q, engine)
+    if fname == 'v_tableau_customer.csv':
+        df = add_scatter_coords(df)  # ⑤ 행동 세그먼트 산점도 좌표(노트북 03과 동일)
     df.to_csv(HERE / fname, index=False, encoding='utf-8-sig')
     print(f'{fname:26s} {len(df):>6,}행 x {df.shape[1]}열')
 
-# 3) 코호트 리텐션 (Python 피벗 → long 포맷, Tableau 히트맵용)
+# 3) 코호트 리텐션 (Python 피벗 → long 포맷, 등급 차원 포함, Tableau 히트맵용)
+#    등급별로 쪼개되 원시 카운트(고객수·코호트크기)를 유지한다. Tableau에서 리텐션율을
+#    SUM(고객수)/SUM(코호트크기)로 재계산하면, 등급 필터 시 해당 등급 리텐션이 나오고
+#    '전체'(등급 합산)는 고객이 등급 하나에만 속하므로 기존 전체 수치와 정확히 일치한다.
 orders = pd.read_sql(
-    "SELECT 고객ID, DATE(거래날짜) AS 구매일 FROM orders_master",
+    "SELECT o.고객ID, DATE(o.거래날짜) AS 구매일, r.등급 "
+    "FROM orders_master o JOIN rfm_scored r ON o.고객ID = r.고객ID",
     engine,
     parse_dates=['구매일'],
 )
@@ -61,14 +102,14 @@ orders = orders.merge(first_month, on='고객ID')
 orders['경과월'] = orders['구매월'] - orders['코호트월']
 
 cohort = (
-    orders.groupby(['코호트월', '경과월'])['고객ID']
+    orders.groupby(['등급', '코호트월', '경과월'])['고객ID']
     .nunique()
     .reset_index(name='고객수')
 )
-size = cohort[cohort['경과월'] == 0].set_index('코호트월')['고객수']
-cohort['코호트크기'] = cohort['코호트월'].map(size)
+size = cohort[cohort['경과월'] == 0].set_index(['등급', '코호트월'])['고객수']
+cohort['코호트크기'] = cohort.set_index(['등급', '코호트월']).index.map(size).to_numpy()
 cohort['리텐션율'] = (cohort['고객수'] / cohort['코호트크기'] * 100).round(1)
-cohort = cohort.sort_values(['코호트월', '경과월']).reset_index(drop=True)
+cohort = cohort.sort_values(['등급', '코호트월', '경과월']).reset_index(drop=True)
 cohort.to_csv(HERE / 'cohort_retention.csv', index=False, encoding='utf-8-sig')
 print(f"{'cohort_retention.csv':26s} {len(cohort):>6,}행 x {cohort.shape[1]}열")
 
