@@ -31,6 +31,8 @@ RFM 등급 분석 결과를 인터랙티브 대시보드로 시각화했다. 등
 
 🔗 **[Tableau Public에서 대시보드 보기](https://public.tableau.com/app/profile/.16528220/viz/_17835946862180/sheet14)**
 
+[![이커머스 고객 등급별 가치와 리텐션 분석 대시보드](assets/dashboard.png)](https://public.tableau.com/app/profile/.16528220/viz/_17835946862180/sheet14)
+
 **주요 인터랙션**
 - 등급 분포 파이 클릭 → 반응 차트가 선택 등급으로 필터되고 KPI 제목·수치가 동적으로 갱신된다.
 - 코호트 리텐션을 등급별로 재생성해, 등급 선택 시 해당 등급의 리텐션을 표시한다.
