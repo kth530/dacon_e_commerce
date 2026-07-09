@@ -104,7 +104,7 @@ dacon_e_commerce/
 | 5 | Platinum 이탈 조짐 고객 | 과거 구매 품목 기반 개인화 재참여 |
 | 6 | Diamond 고객 | 할인보다 전용 혜택과 등급 유지 경험 강화 |
 
-상세 근거는 [`notebooks/08_project_summary.ipynb`](notebooks/08_project_summary.ipynb)에 정리했다.
+등급별 상세 근거는 심층 분석 노트북([04 Bronze](notebooks/04_segment_bronze.ipynb) · [05 Silver](notebooks/05_segment_silver.ipynb) · [06 Gold](notebooks/06_segment_gold.ipynb) · [07 Diamond·Platinum](notebooks/07_segment_diamond_platinum.ipynb))에, 전체 요약은 [08 프로젝트 요약](notebooks/08_project_summary.ipynb)에 정리했다.
 
 ---
 
