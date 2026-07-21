@@ -17,7 +17,7 @@
 
 ## SQL 파일 구조
 
-분석 노트북 02~07은 각각 짝이 되는 `sql/NN_*.sql` 파일을 가진다.
+분석 노트북 01~07은 각각 짝이 되는 `sql/NN_*.sql` 파일을 가진다.
 각 쿼리는 `-- name: 이름 | 설명` 마커로 구분한다.
 
 ```sql
@@ -27,7 +27,8 @@ FROM rfm_result
 WHERE 등급 = 'Bronze'
 ```
 
-> `00_etl`(타입변환·적재)·`01_eda`(탐색·Plotly)는 Python 비중이 높아 인라인 유지한다.
+> `00_etl`(타입변환·적재)은 Python 비중이 높아 인라인 유지한다.
+> `01_eda`는 집계 SQL을 `sql/01_eda.sql`로 외부화하고, median·corr·linregress·14일 윈도우 ARPPU 등 SQL 미지원 연산만 Python에 둔다.
 > `02_retention`은 SQL(코호트·`curve_a/b` 추출)은 외부화하고, 코호트 피벗·`qcut`만 Python에 둔다.
 > 동적 값 주입이 필요한 쿼리는 `Q['이름'].format(...)`으로 호출한다 (예: `02`의 `cohort_by_cat`).
 

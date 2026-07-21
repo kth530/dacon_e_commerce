@@ -54,7 +54,7 @@ dacon_e_commerce/
 ├── README.md
 ├── docs/           # RFM 방법론·SQL/Python 역할 분리
 ├── notebooks/      # 00-08 분석 노트북
-├── sql/            # 02-07 분석 쿼리
+├── sql/            # 01-07 분석 쿼리
 ├── tableau/        # Tableau 데이터 소스 구성 코드
 └── data/           # 원본 CSV, 저장소 제외
 ```
@@ -143,7 +143,7 @@ RFM 점수화와 등급 기준은 [`docs/methodology.md`](docs/methodology.md), 
 원본 데이터와 Tableau 산출 CSV는 공개 저장소에 포함하지 않는다.
 
 - 주요 분석 결과는 렌더된 노트북에서 확인할 수 있다.
-- 02-07 분석에서 사용한 SQL 쿼리는 [`sql/`](sql/) 폴더에 분리했다.
+- 01-07 분석에서 사용한 SQL 쿼리는 [`sql/`](sql/) 폴더에 분리했다.
 - RFM 점수화, 등급 기준, SQL/Python 역할 분리는 [`docs/`](docs/)에서 확인할 수 있다.
 - 전체 요약은 [`notebooks/08_project_summary.ipynb`](notebooks/08_project_summary.ipynb)에 정리했다.
 
