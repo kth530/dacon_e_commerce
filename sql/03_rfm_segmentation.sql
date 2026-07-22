@@ -106,3 +106,31 @@ JOIN (
     GROUP BY 고객ID
 ) v ON r.고객ID = v.고객ID
 GROUP BY r.등급
+
+-- name: repurchase_windows_by_grade | 등급별 첫 구매 후 30/60/90일 내 재구매 고객수·전체수 (재구매율은 Python)
+WITH first_purchase AS (
+    SELECT
+        고객ID,
+        MIN(DATE(거래날짜)) AS first_date
+    FROM orders_master
+    GROUP BY 고객ID
+),
+repurchase_flags AS (
+    SELECT
+        o.고객ID,
+        MAX(CASE WHEN DATE(o.거래날짜) > f.first_date AND DATE(o.거래날짜) <= DATE_ADD(f.first_date, INTERVAL 30 DAY) THEN 1 ELSE 0 END) AS w30,
+        MAX(CASE WHEN DATE(o.거래날짜) > f.first_date AND DATE(o.거래날짜) <= DATE_ADD(f.first_date, INTERVAL 60 DAY) THEN 1 ELSE 0 END) AS w60,
+        MAX(CASE WHEN DATE(o.거래날짜) > f.first_date AND DATE(o.거래날짜) <= DATE_ADD(f.first_date, INTERVAL 90 DAY) THEN 1 ELSE 0 END) AS w90
+    FROM orders_master o
+    JOIN first_purchase f ON o.고객ID = f.고객ID
+    GROUP BY o.고객ID
+)
+SELECT
+    r.등급,
+    COUNT(*) AS 고객수,
+    SUM(fl.w30) AS 재구매30,
+    SUM(fl.w60) AS 재구매60,
+    SUM(fl.w90) AS 재구매90
+FROM repurchase_flags fl
+JOIN rfm_result r ON fl.고객ID = r.고객ID
+GROUP BY r.등급
