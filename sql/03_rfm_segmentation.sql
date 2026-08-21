@@ -29,7 +29,7 @@ SELECT
         WHEN CONCAT(R, F, M) IN (
             '512', '511', '422', '421', '412', '411',
             '311'
-        ) THEN '신규 고객'
+        ) THEN '최근·저빈도 고객'
         WHEN CONCAT(R, F, M) IN (
             '525', '524', '523', '522', '521', '515',
             '514', '513', '425', '424', '413', '414',
@@ -107,7 +107,7 @@ JOIN (
 ) v ON r.고객ID = v.고객ID
 GROUP BY r.등급
 
--- name: repurchase_windows_by_grade | 등급별 첫 구매 후 30/60/90일 내 재구매 고객수·전체수 (재구매율은 Python)
+-- name: repurchase_windows_by_grade | 등급별 관측기간 첫 구매 후 30/60/90일 내 재구매 고객수·전체수 (재구매율은 Python)
 WITH first_purchase AS (
     SELECT
         고객ID,

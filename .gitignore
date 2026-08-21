@@ -37,6 +37,18 @@ env/
 
 # Tableau generated files
 tableau/*.csv
-tableau/BUILD_GUIDE.md
 *.twb
 *.twbx
+*.twbr
+
+# Local portfolio build helpers and generated artifacts
+/requirements.txt
+/scripts/
+/p[1-4].png
+/tableau/.work_*/
+/tableau/BUILD_GUIDE.md
+/tableau/*_DASHBOARD_GUIDE.md
+/tableau/build_*dashboard.py
+/tableau/pipeline_metadata.json
+/tableau/assets/action_cards/build_experiment_diagrams.py
+/tableau/assets/action_cards/p*_flow*.png

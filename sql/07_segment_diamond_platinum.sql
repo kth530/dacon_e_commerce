@@ -55,13 +55,22 @@ JOIN rfm_result r ON t.고객ID = r.고객ID
 WHERE r.등급 IN ('Diamond', 'Platinum')
 GROUP BY r.등급
 
--- name: coupon_by_category | 등급·카테고리별 쿠폰 사용 (거래 100건 초과만)
+-- name: coupon_by_category | 등급·카테고리별 쿠폰 사용 거래 (거래-카테고리 100건 초과만)
+WITH tx_category_coupon AS (
+    SELECT
+        고객ID,
+        거래ID,
+        제품카테고리,
+        MAX(CASE WHEN 쿠폰상태 = 'Used' THEN 1 ELSE 0 END) AS 쿠폰사용
+    FROM orders_master
+    GROUP BY 고객ID, 거래ID, 제품카테고리
+)
 SELECT
     r.등급,
     o.제품카테고리,
-    SUM(CASE WHEN o.쿠폰상태 = 'Used' THEN 1 ELSE 0 END) AS 쿠폰사용_건수,
+    SUM(o.쿠폰사용) AS 쿠폰사용_건수,
     COUNT(*) AS 총_건수
-FROM orders_master o
+FROM tx_category_coupon o
 JOIN rfm_result r ON o.고객ID = r.고객ID
 WHERE r.등급 IN ('Diamond', 'Platinum')
 GROUP BY r.등급, o.제품카테고리
@@ -103,7 +112,7 @@ FROM 간격계산
 WHERE 이전구매일 IS NOT NULL
 GROUP BY 고객ID
 
--- name: first_category | 고객별 첫 구매일 주력 카테고리 + 등급
+-- name: first_category | 고객별 관측기간 첫 구매일 주력 카테고리 + 같은 해 최종 등급
 WITH first_dates AS (
     SELECT
         고객ID,
@@ -140,7 +149,7 @@ FROM ranked r
 JOIN rfm_result g ON r.고객ID = g.고객ID
 WHERE r.rn = 1
 
--- name: first_category_agg | 첫 구매 카테고리별 전체·DP 고객수 (비율·전환율은 Python)
+-- name: first_category_agg | 관측기간 첫 구매 카테고리별 전체·연말 DP 고객수 (연관성 기술용)
 WITH first_dates AS (
     SELECT
         고객ID,

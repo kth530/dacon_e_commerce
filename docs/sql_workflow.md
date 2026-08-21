@@ -37,7 +37,11 @@ WHERE 등급 = 'Bronze'
 각 노트북 setup 셀에 헬퍼가 있다:
 
 ```python
-SQL_FILE = Path('../sql/04_segment_bronze.sql')
+PROJECT_ROOT = next(
+    path for path in [Path.cwd(), *Path.cwd().parents]
+    if (path / '.env').exists() and (path / 'sql').is_dir()
+)
+SQL_FILE = PROJECT_ROOT / 'sql' / '04_segment_bronze.sql'
 
 def load_queries(path):
     body = Path(path).read_text(encoding='utf-8')
