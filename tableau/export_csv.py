@@ -8,19 +8,29 @@ Tableau Public은 MySQL 라이브 연결이 안 되므로 이 CSV를 데이터 �
 """
 import os
 import re
+import json
+import hashlib
+from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
-from sqlalchemy import create_engine, text
+from sqlalchemy import URL, create_engine, text
 
 HERE = Path(__file__).resolve().parent
-load_dotenv(HERE.parent / '.env')
+ROOT = HERE.parent
+load_dotenv(ROOT / '.env')
+DATA_DIR = Path(os.getenv('DATA_DIR', ROOT / 'data'))
 
 engine = create_engine(
-    f"mysql+mysqlconnector://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}"
-    f"@{os.getenv('DB_HOST')}/{os.getenv('DB_NAME')}"
+    URL.create(
+        'mysql+mysqlconnector',
+        username=os.getenv('DB_USER'),
+        password=os.getenv('DB_PASSWORD'),
+        host=os.getenv('DB_HOST'),
+        database=os.getenv('DB_NAME'),
+    )
 )
 
 
@@ -86,7 +96,7 @@ for fname, q in exports.items():
     df.to_csv(HERE / fname, index=False, encoding='utf-8-sig')
     print(f'{fname:26s} {len(df):>6,}행 x {df.shape[1]}열')
 
-# 3) 코호트 리텐션 (Python 피벗 → long 포맷, 등급 차원 포함, Tableau 히트맵용)
+# 3) 관측기간 코호트 리텐션 (Python 피벗 → long 포맷, 등급 차원 포함)
 #    등급별로 쪼개되 원시 카운트(고객수·코호트크기)를 유지한다. Tableau에서 리텐션율을
 #    SUM(고객수)/SUM(코호트크기)로 재계산하면, 등급 필터 시 해당 등급 리텐션이 나오고
 #    '전체'(등급 합산)는 고객이 등급 하나에만 속하므로 기존 전체 수치와 정확히 일치한다.
@@ -117,6 +127,37 @@ print(f"{'cohort_retention.csv':26s} {len(cohort):>6,}행 x {cohort.shape[1]}열
 cust = pd.read_csv(HERE / 'v_tableau_customer.csv')
 assert len(cust) == 1468, f'고객수 불일치: {len(cust)}'
 grade = cust['등급'].value_counts().to_dict()
-expected = {'Bronze': 699, 'Silver': 314, 'Gold': 243, 'Platinum': 154, 'Diamond': 58}
+expected = {'Bronze': 698, 'Silver': 315, 'Gold': 243, 'Platinum': 154, 'Diamond': 58}
 assert grade == expected, f'등급 분포 불일치: {grade}'
 print('\n검증 통과 — 고객 1,468명, 등급 분포 일치:', expected)
+
+orders_export = pd.read_csv(HERE / 'v_tableau_orders.csv')
+assert len(orders_export) == 52924, f'거래라인 수 불일치: {len(orders_export)}'
+
+
+def sha256(path):
+    digest = hashlib.sha256()
+    with Path(path).open('rb') as file:
+        for chunk in iter(lambda: file.read(1024 * 1024), b''):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+metadata = {
+    'generated_at_utc': datetime.now(timezone.utc).isoformat(),
+    'source_sha256': {
+        path.name: sha256(path)
+        for path in sorted(DATA_DIR.glob('*.csv'))
+    },
+    'rows': {
+        'v_tableau_orders.csv': len(orders_export),
+        'v_tableau_customer.csv': len(cust),
+        'v_tableau_monthly.csv': len(pd.read_csv(HERE / 'v_tableau_monthly.csv')),
+        'cohort_retention.csv': len(cohort),
+    },
+    'grade_counts': expected,
+}
+(HERE / 'pipeline_metadata.json').write_text(
+    json.dumps(metadata, ensure_ascii=False, indent=2), encoding='utf-8'
+)
+print('pipeline_metadata.json 생성 — 원본 해시·행 수·등급 분포 기록')

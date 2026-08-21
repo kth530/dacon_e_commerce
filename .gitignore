@@ -42,6 +42,8 @@ tableau/*.csv
 *.twbr
 
 # Local portfolio build helpers and generated artifacts
+/notion_img/
+/tableau/p[1-4].png
 /requirements.txt
 /scripts/
 /p[1-4].png
