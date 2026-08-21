@@ -33,7 +33,17 @@ CRM/마케팅팀으로부터 "고객 재구매율을 높이기 위해 어떤 고
 
 🔗 **[Tableau Public에서 대시보드 보기](https://public.tableau.com/app/profile/.16528220/viz/_17872369187540/01)**
 
-[![이커머스 고객 분석 대시보드](assets/dashboard.png)](https://public.tableau.com/app/profile/.16528220/viz/_17872369187540/01)
+### 1. 매출·리텐션
+
+[![매출·리텐션 대시보드](<assets/01 · 고객·매출 구조.png>)](https://public.tableau.com/app/profile/.16528220/viz/_17872369187540/01)
+
+### 2. 등급·세그먼트
+
+[![등급·세그먼트 대시보드](<assets/02 · 세그먼트 우선순위.png>)](https://public.tableau.com/app/profile/.16528220/viz/_17872369187540/01)
+
+### 3. 액션·실험
+
+[![액션·실험 대시보드](<assets/03 · 리텐션·실험.png>)](https://public.tableau.com/app/profile/.16528220/viz/_17872369187540/01)
 
 **주요 인터랙션**
 - 상단 내비게이션으로 매출·리텐션, 등급·세그먼트, 액션·실험 화면을 이동한다.
