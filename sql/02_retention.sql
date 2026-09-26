@@ -219,3 +219,8 @@ FROM orders_master o
 JOIN first_purchases f ON o.고객ID = f.고객ID
 JOIN cat_buyers c ON o.고객ID = c.고객ID
 WHERE o.성별 = '{gender}'
+
+-- name: customer_visit_days | 고객별 서로 다른 구매일 수 (연간 재방문율·재방문 분포 계산용)
+SELECT 고객ID, COUNT(DISTINCT DATE(거래날짜)) AS 방문일수
+FROM orders_master
+GROUP BY 고객ID
