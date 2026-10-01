@@ -74,6 +74,31 @@ CREATE TABLE rfm_result AS
 SELECT 고객ID, 등급, 세그먼트, R, F, M, RFM_score, Recency, Frequency, Monetary
 FROM rfm_scored
 
+-- name: create_customer_purchase_activity_view | 고객 1명당 1행의 구매 활동 지표
+CREATE OR REPLACE VIEW customer_purchase_activity AS
+WITH daily_purchase AS (
+    SELECT DISTINCT
+        고객ID,
+        DATE(거래날짜) AS 구매일
+    FROM orders_master
+),
+purchase_sequence AS (
+    SELECT
+        고객ID,
+        구매일,
+        LAG(구매일) OVER (PARTITION BY 고객ID ORDER BY 구매일) AS 이전구매일
+    FROM daily_purchase
+)
+SELECT
+    고객ID,
+    MIN(구매일) AS 첫구매일,
+    MAX(구매일) AS 마지막구매일,
+    COUNT(*) AS 구매일수,
+    DATEDIFF('2019-12-31', MAX(구매일)) AS Recency,
+    MAX(DATEDIFF(구매일, 이전구매일)) AS 최대구매간격
+FROM purchase_sequence
+GROUP BY 고객ID
+
 -- name: segment_counts | 세그먼트별 고객 수
 SELECT 세그먼트, COUNT(*) AS 고객수
 FROM rfm_result

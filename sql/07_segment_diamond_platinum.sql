@@ -78,39 +78,31 @@ HAVING 총_건수 > 100
 ORDER BY 총_건수 DESC
 
 -- name: platinum_recency | Platinum 고객별 Recency·구매일수·총구매금액
-SELECT
-    o.고객ID,
-    DATEDIFF('2019-12-31', MAX(o.거래날짜)) AS Recency,
-    COUNT(DISTINCT DATE(o.거래날짜)) AS 구매일수,
-    ROUND(SUM(o.세후금액), 0) AS 총구매금액
-FROM orders_master o
-JOIN rfm_result r ON o.고객ID = r.고객ID
-WHERE r.등급 = 'Platinum'
-GROUP BY o.고객ID
-
--- name: max_gap_platinum | Platinum 고객별 최대 구매 간격
-WITH 구매일목록 AS (
+WITH platinum_value AS (
     SELECT
         o.고객ID,
-        DATE(o.거래날짜) AS 구매일
+        ROUND(SUM(o.세후금액), 0) AS 총구매금액
     FROM orders_master o
     JOIN rfm_result r ON o.고객ID = r.고객ID
     WHERE r.등급 = 'Platinum'
-    GROUP BY o.고객ID, DATE(o.거래날짜)
-),
-간격계산 AS (
-    SELECT
-        고객ID,
-        구매일,
-        LAG(구매일) OVER (PARTITION BY 고객ID ORDER BY 구매일) AS 이전구매일
-    FROM 구매일목록
+    GROUP BY o.고객ID
 )
 SELECT
-    고객ID,
-    MAX(DATEDIFF(구매일, 이전구매일)) AS 최대구매간격
-FROM 간격계산
-WHERE 이전구매일 IS NOT NULL
-GROUP BY 고객ID
+    p.고객ID,
+    a.Recency,
+    a.구매일수,
+    p.총구매금액
+FROM platinum_value p
+JOIN customer_purchase_activity a ON p.고객ID = a.고객ID
+
+-- name: max_gap_platinum | Platinum 고객별 최대 구매 간격
+SELECT
+    a.고객ID,
+    a.최대구매간격
+FROM customer_purchase_activity a
+JOIN rfm_result r ON a.고객ID = r.고객ID
+WHERE r.등급 = 'Platinum'
+    AND a.최대구매간격 IS NOT NULL
 
 -- name: first_category | 고객별 관측기간 첫 구매일 주력 카테고리 + 같은 해 최종 등급
 WITH first_dates AS (

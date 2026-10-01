@@ -30,6 +30,7 @@ WHERE 등급 = 'Bronze'
 > `00_etl`(타입변환·적재)은 Python 비중이 높아 인라인 유지한다.
 > `01_eda`는 집계 SQL을 `sql/01_eda.sql`로 외부화하고, median·corr·linregress·14일 윈도우 ARPPU 등 SQL 미지원 연산만 Python에 둔다.
 > `02_retention`은 SQL(코호트·`retention_curves` 추출)은 외부화하고, 코호트 피벗·`qcut`과 A/B DataFrame 복원만 Python에 둔다.
+> `03_rfm_segmentation`은 `rfm_result`와 고객 1명당 1행인 `customer_purchase_activity` view를 생성하며, `04~07`은 두 객체를 조인해 등급별 분석 스키마를 복원한다.
 > 동적 값 주입이 필요한 쿼리는 `Q['이름'].format(...)`으로 호출한다 (예: `02`의 `cohort_by_cat`).
 
 ## 노트북에서 쿼리 호출
@@ -77,10 +78,15 @@ orders_master ──(Python: qcut·IQR·PCA)──▶ rfm_scores (테이블: 고
                               (SQL VIEW rfm_scored: 등급·세그먼트 CASE WHEN)
                                                   │
                                           rfm_result (테이블, 04~07이 JOIN)
+
+orders_master ──(SQL VIEW: 구매일 중복 제거·LAG)──▶ customer_purchase_activity
+                                                     (고객 1명당 1행, 04~07이 JOIN)
 ```
 
 - `등급`: `RFM_score` 임계값(95/80/65/50) CASE WHEN
 - `세그먼트`: `CONCAT(R,F,M)` 3자리 코드를 11종 룰에 `IN`으로 매핑 (`sql/03_rfm_segmentation.sql`)
+- `customer_purchase_activity`: 첫·마지막 구매일, 구매일수, `2019-12-31` 기준 Recency, 최대 구매 간격을 한 곳에서 정의한다. 단일 구매일 고객의 최대 간격은 `NULL`을 유지한다.
+- 실행 순서는 `03` 다음 `04~07`이다. 개별 등급 노트북도 `03`이 두 공통 객체를 생성한 환경을 전제로 하며, `scripts/run_pipeline.py`가 이 순서를 보장한다.
 
 ## Tableau 파이프라인
 
