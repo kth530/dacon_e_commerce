@@ -61,3 +61,6 @@ tableau/*.csv
 
 # 대시보드 캡처 (저장소에 포함하지 않음)
 /tableau/*.png
+
+# 구버전 대시보드 이미지
+/assets/
