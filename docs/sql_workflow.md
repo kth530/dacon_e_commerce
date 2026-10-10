@@ -1,100 +1,29 @@
-# SQL 중심 분석 워크플로
+# SQL 조회·검산 워크플로
 
-이 프로젝트는 **추출·집계·분류는 SQL, 모델링·통계·시각화는 Python, 발표는 Tableau**로 역할을 나눈다.
+[최종 분석 노트북](../notebooks/README.md)은 `data/`의 CSV를 Python으로 읽어 전처리·RFM 점수화·시각화를 수행한다. MySQL은 적재 결과를 별도로 조회하고 Python 결과와 집계 기준을 대조하는 경로다. 노트북을 읽거나 실행하는 데 SQL 서버는 필요하지 않다.
 
-## 원칙: SQL이 할 일만 SQL로
+## 1. 데이터 적재
 
-| 작업 | 담당 | 이유 |
-|------|------|------|
-| 집계·필터·조인·조건집계 | **SQL** | DB에서 처리하는 게 자연스럽고 빠름 |
-| 분류·라벨링 (등급·세그먼트) | **SQL** (CASE WHEN, VIEW) | 비즈니스 룰을 선언적으로 한 곳에 |
-| 윈도우 (LAG·ROW_NUMBER) | **SQL** | 구매 간격·순위 계산 |
-| RFM 점수화 (qcut·IQR·PCA·KMeans) | **Python** | SQL이 지원하지 않는 분위/머신러닝 연산 |
-| 코호트 피벗 | **Python** | 행→열 피벗은 pandas가 적합 |
-| 통계 검정·회귀 (scipy) | **Python** | — |
-| median 병기 집계 | **Python** | MySQL 8에 깔끔한 median 함수 없음 |
-| 시각화 | **Python (Plotly)** + **Tableau** | 노트북은 분석 깊이, Tableau는 발표 |
+[02 데이터 준비](../notebooks/02_data_preparation.ipynb)의 `RUN_MYSQL_LOAD`를 `True`로 설정하고 프로젝트 루트의 `.env`에 `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`를 넣어 실행한다. 이 셀은 `onlinesales`, `customers`, `discount`, `marketing`, `tax`, `orders_master`, `rfm_scores`, `rfm_result`를 적재한다. `if_exists='replace'`를 사용하므로 실행 전 대상 데이터베이스를 확인한다.
 
-## SQL 파일 구조
+기준 주문 키는 `(고객ID, 거래ID)`다. 상품매출은 할인 후·GST 포함·배송비 제외 금액이며, 배송비는 고객 주문마다 한 번 반영한다. 자세한 정의는 [지표 계약](metric_contract.md)을 따른다.
 
-분석 노트북 01~07은 각각 짝이 되는 `sql/NN_*.sql` 파일을 가진다.
-각 쿼리는 `-- name: 이름 | 설명` 마커로 구분한다.
+## 2. SQL 실행 순서
 
-```sql
--- name: bronze_rfm | Bronze 등급 고객의 RFM 점수·지표
-SELECT 고객ID, 세그먼트, Recency, Frequency, Monetary, R, F, M, RFM_score
-FROM rfm_result
-WHERE 등급 = 'Bronze'
-```
+MySQL 8에서 [최종 SQL 폴더](../sql/README.md)의 파일을 아래 순서로 실행한다.
 
-> `00_etl`(타입변환·적재)은 Python 비중이 높아 인라인 유지한다.
-> `01_eda`는 집계 SQL을 `sql/01_eda.sql`로 외부화하고, median·corr·linregress·14일 윈도우 ARPPU 등 SQL 미지원 연산만 Python에 둔다.
-> `02_retention`은 SQL(코호트·`retention_curves` 추출)은 외부화하고, 코호트 피벗·`qcut`과 A/B DataFrame 복원만 Python에 둔다.
-> `03_rfm_segmentation`은 `rfm_result`와 고객 1명당 1행인 `customer_purchase_activity` view를 생성하며, `04~07`은 두 객체를 조인해 등급별 분석 스키마를 복원한다.
-> 동적 값 주입이 필요한 쿼리는 `Q['이름'].format(...)`으로 호출한다 (예: `02`의 `cohort_by_cat`).
+| 순서 | 파일 | 결과 |
+|---|---|---|
+| 1 | [02 데이터 준비 SQL](../sql/02_data_preparation.sql) | 원천·주문 키·금액·분류 검산, `fa_` 고객 주문·활동·월·프로파일 뷰 생성 |
+| 2 | [03 데이터 개요 SQL](../sql/03_data_overview.sql) | 원천 컬럼과 결합 필드, 주문·월·등급·세그먼트 구성 조회 |
+| 3 | [04 가설 검증 SQL](../sql/04_eda_validation.sql) | 다른 날 재방문, 관측 첫 구매월 복귀, 등급별 상품매출, 등급 내부 상태 조회 |
 
-## 노트북에서 쿼리 호출
+각 `-- name:` 블록은 개별 SQL 문장이다. 02의 `create_*` 뷰를 순서대로 생성한 다음 03·04를 실행한다. SQL 클라이언트에서 파일 전체를 실행해도 조회 결과가 순서대로 나온다. 뷰는 적재 테이블을 삭제하거나 교체하지 않는다.
 
-각 노트북 setup 셀에 헬퍼가 있다:
+R·F·M 점수, PCA 가중치, 등급·세그먼트는 노트북에서 만든다. SQL의 `fa_rfm_classified` 뷰는 적재된 `rfm_scores`에 같은 등급·세그먼트 규칙을 적용해 `rfm_result`와 대조한다. SQL 집계는 원시 수와 금액을 유지하고, 표시용 반올림과 차트는 노트북에서 처리한다.
 
-```python
-PROJECT_ROOT = next(
-    path for path in [Path.cwd(), *Path.cwd().parents]
-    if (path / '.env').exists() and (path / 'sql').is_dir()
-)
-SQL_FILE = PROJECT_ROOT / 'sql' / '04_segment_bronze.sql'
+## 3. 전체 실행과 Tableau
 
-def load_queries(path):
-    body = Path(path).read_text(encoding='utf-8')
-    parts = re.split(r'(?m)^--\s*name:\s*(\w+).*$', body)
-    return {parts[i]: parts[i + 1].strip() for i in range(1, len(parts), 2)}
+프로젝트 루트에서 `python scripts/run_pipeline.py`를 실행하면 노트북 02→03→04가 순서대로 실행된다. `--dry-run`은 실행 대상만 확인한다. MySQL 적재는 노트북의 `RUN_MYSQL_LOAD` 설정에 따른다.
 
-Q = load_queries(SQL_FILE)
-
-def run(name, **kwargs):      # SELECT → DataFrame
-    return pd.read_sql(Q[name], engine, **kwargs)
-
-def execute(name):           # DDL(세미콜론 구분) 실행 — VIEW·TABLE 생성
-    with engine.begin() as conn:
-        for stmt in [s for s in Q[name].split(';') if s.strip()]:
-            conn.execute(text(stmt))
-```
-
-사용:
-```python
-bronze_rfm = run('bronze_rfm')
-execute('create_rfm_scored_view')
-```
-
-집계를 SQL로 옮길 때 **반올림·비중은 Python에 둔다** (pandas의 banker's rounding과 MySQL ROUND의 차이로 표시값이 어긋나는 것을 방지). SQL은 원시 `COUNT/SUM/AVG`까지만 한다.
-
-## RFM 분류는 SQL VIEW
-
-점수화는 Python, 등급·세그먼트 분류는 SQL VIEW로 분리한다.
-
-```
-orders_master ──(Python: qcut·IQR·PCA)──▶ rfm_scores (테이블: 고객ID·R·F·M·RFM_score…)
-                                                  │
-                              (SQL VIEW rfm_scored: 등급·세그먼트 CASE WHEN)
-                                                  │
-                                          rfm_result (테이블, 04~07이 JOIN)
-
-orders_master ──(SQL VIEW: 구매일 중복 제거·LAG)──▶ customer_purchase_activity
-                                                     (고객 1명당 1행, 04~07이 JOIN)
-```
-
-- `등급`: `RFM_score` 임계값(95/80/65/50) CASE WHEN
-- `세그먼트`: `CONCAT(R,F,M)` 3자리 코드를 11종 룰에 `IN`으로 매핑 (`sql/03_rfm_segmentation.sql`)
-- `customer_purchase_activity`: 첫·마지막 구매일, 구매일수, `2019-12-31` 기준 Recency, 최대 구매 간격을 한 곳에서 정의한다. 단일 구매일 고객의 최대 간격은 `NULL`을 유지한다.
-- 실행 순서는 `03` 다음 `04~07`이다. 개별 등급 노트북도 `03`이 두 공통 객체를 생성한 환경을 전제로 하며, `scripts/run_pipeline.py`가 이 순서를 보장한다.
-
-## Tableau 파이프라인
-
-`tableau/`는 발표용 레이어다. 노트북 Plotly를 대체하지 않고 보완한다.
-
-```
-rfm_scored / orders_master ──(tableau_views.sql)──▶ v_tableau_orders/customer/monthly
-                            ──(export_csv.py)──────▶ CSV 4종 ──▶ Tableau Desktop
-```
-
-대시보드 제작에 필요한 공개 대상 코드는 `tableau/tableau_views.sql`과 `tableau/export_csv.py`에 정리한다.
+Tableau CSV는 프로젝트 루트에서 `python tableau/export_csv.py`를 실행해 생성한다. 추출 코드는 최종 02 노트북의 Python 분석 테이블과 03·04의 필요한 셀을 이용한다. MySQL 적재는 필요하지 않으며, 이미 적재한 DB와 대조하려면 `--verify-mysql`을 추가한다. [기존 Tableau 뷰](../tableau/tableau_views.sql)는 과거 MySQL 추출 방식을 보관한 파일이다. 주문 수는 고객ID와 거래ID의 조합으로 세고, 주문라인 CSV의 `고객주문키`를 Tableau 계산에 사용한다. CSV 계약과 워크북 수정 사항은 [Tableau 안내](../tableau/README.md)를 참고한다.

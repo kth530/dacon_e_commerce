@@ -1,169 +1,55 @@
-# Dacon 이커머스 고객 분석
+# 이커머스 고객 등급별 가치와 리텐션 분석
 
-온라인 커머스 1년치(2019) 거래 데이터를 기반으로 고객 구매 패턴, 리텐션, RFM 등급을 분석하고, 등급별 고객 관리 우선순위를 도출한 데이터 분석 프로젝트.
+분석 시점을 2020년 1월 초로 두고, 2019년 한 해의 거래 이력만으로 CRM팀이 이번 분기에 먼저 접촉할 고객을 고르는 상황을 가정한 포트폴리오 분석이다. 고객 1,468명을 RFM 가치 등급으로 나눈 뒤 등급별 복귀 패턴과 등급 내부의 구매 상태를 차례로 확인했다. CRM팀의 재참여 요청은 공개 데이터를 분석하기 위해 설정한 가상 상황이다.
 
----
+## 분석 흐름
 
-## 프로젝트 배경
+1. [문제 정의와 가설](notebooks/01_problem_hypothesis.md): 전체 평균 하나로는 접촉 대상이 가려지지 않는다는 문제를 정의하고, 등급별 가치·복귀 패턴·등급 내부 상태에 관한 가설 3개를 세운다.
+2. [데이터 준비](notebooks/02_data_preparation.ipynb): 원천 CSV 5개를 결합하고 고객 주문 키·금액을 정리한다. RFM 점수와 5등급·11세그먼트를 만든다.
+3. [데이터 개요](notebooks/03_data_overview.ipynb): 결합 필드, 주문 구성, 고객과 RFM 분포를 살펴본다.
+4. [가설 검증](notebooks/04_eda_validation.ipynb): 전체 기준선을 잡은 뒤 등급별 고객 수·상품매출, 등급별 경과월 재구매율과 코호트 리텐션, 등급 내부의 구매 공백을 차례로 확인하고 접촉 대상과 후속 검증안을 정리한다.
 
-> **아래 상황은 공개 데이터를 실무처럼 다뤄 보기 위해 설정한 가상 시나리오다.** 실제 회사·담당자·업무 요청이 아니다.
+[분석 노트북 안내](notebooks/README.md) · [SQL 조회·검산 안내](sql/README.md) · [지표 계약](docs/metric_contract.md) · [RFM 방법론](docs/methodology.md) · [SQL 실행 방법](docs/sql_workflow.md)
 
-**왜 이 분석을 시작했나**  
-CRM/마케팅팀으로부터 "고객 재구매율을 높이기 위해 어떤 고객군을 우선 관리해야 하는가"라는 분석 요청을 받았다는 상황을 가정했다. 단순히 매출이 높은 카테고리나 고객을 찾는 것보다, 고객이 언제 이탈하고 어떤 등급에서 전환 가능성이 있는지 확인하는 것이 핵심이었다.
+## 주요 관찰
 
-**어떻게 풀었나**  
-원본 거래 데이터를 정제해 고객 단위 분석 테이블을 만들고, ① EDA로 매출·고객·카테고리 구조 파악 → ② 코호트 리텐션으로 재구매 흐름 확인 → ③ RFM 점수화와 등급 배정 → ④ Bronze/Silver/Gold/Diamond·Platinum 등급별 심층 분석 순서로 진행했다.
+| 지표 | 2019년 관찰값 |
+|---|---:|
+| 서로 다른 날 2일 이상 구매한 고객 | 734/1,468명 (50.00%) |
+| 관측 첫 구매월 +1개월 복귀 | 130/1,362명 (9.54%) |
+| 등급별 +1개월 복귀율 | Bronze 4.09% ~ Diamond 25.00% |
+| Bronze 고객 수·상품매출 비중 | 698명 (47.55%) · 10.93% |
+| Diamond+Platinum 고객 수·상품매출 비중 | 212명 (14.44%) · 48.56% |
 
-**그래서, 무엇을 알게 됐나**  
-전체 매출은 상위 고객군과 특정 카테고리에 집중되어 있었지만, 리텐션 관점에서는 첫 구매 이후 이탈 방어와 등급별 재참여 타이밍이 더 중요한 과제로 나타났다. 개선 우선순위는 다음처럼 정리된다.
+세 가설 중 둘은 관찰과 어긋났다. 고객 수가 많은 등급이 상품매출도 떠받칠 것이라는 예상과 달리, 고객이 가장 많은 Bronze가 매출 기여에서는 가장 아래였다. 같은 등급 안에서는 구매 상태가 비슷할 것이라는 예상도 빗나갔다. Silver·Gold·Platinum 세 등급 모두 구매 공백이 긴 쪽의 누적 구매액이 오히려 컸다.
 
-| 우선순위 | 무엇을 | 근거 |
-|---|---|---|
-| 1 | 신규·Bronze 고객의 2차 구매 유도 | 전체 코호트 리텐션이 낮고 첫 구매 직후 이탈 방어가 중요 |
-| 2 | Silver·Gold 이탈 위험 고객 재참여 | 최근 구매가 줄었어도 구매금액이 높은 고객군 존재 |
-| 3 | Platinum·Diamond 고객 유지 전략 | 상위 2등급이 전체 고객의 약 14%지만 매출의 약 48% 담당 |
+등급이 높을수록 복귀가 꾸준하다는 방향만 관찰과 맞았다. 수준뿐 아니라 곡선의 모양이 달라서, Bronze는 첫 두 달에 복귀가 몰렸다가 내려가고 상위 등급은 공백이 길어도 돌아온다. 접촉 **순서**는 가치 등급에서, 접촉 **시점**은 복귀 곡선에서 나온다.
 
-> 데이터가 2019년 1개년 기준이므로 계절성 반복 여부와 캠페인 효과는 다년도 데이터와 실제 캠페인 실험으로 재검증이 필요하다.
+RFM 등급과 11개 행동 세그먼트는 2019-12-31을 기준일로 한 구매 이력 프로파일이다. 등급 산식에 Recency·Frequency·Monetary가 모두 들어가므로, 등급별 매출 비중과 재구매율의 수준 차이는 일부가 산식에서 따라온다.
 
----
+## 데이터와 집계 기준
 
-## Tableau 대시보드
+| 항목 | 기준 |
+|---|---|
+| 관측기간 | 2019-01-01~2019-12-31 |
+| 상품라인 | 52,924행 |
+| 고객 주문 | `(고객ID, 거래ID)` 26,631건 |
+| 상품매출 | 할인 후·GST 포함·배송비 제외, 합계 $4,840,102.19 |
+| 배송비 | 고객 주문마다 1회, 합계 $238,987.60 |
+| Recency | 2019-12-31부터 마지막 구매일까지의 일수 |
+| Frequency | 고객별 고유 거래ID 수 |
+| Monetary | 고객별 상품매출 합계 |
 
-분석 결과를 `매출·리텐션`, `등급·세그먼트`, `액션·실험`의 3개 화면으로 구성했다. 매출 구조와 코호트 리텐션을 확인한 뒤 등급·세그먼트별 우선순위를 비교하고, 관찰 결과를 고객군별 실험 후보로 연결한다.
+거래ID가 여러 고객에게 재사용되므로 주문 집계에는 고객ID와 거래ID를 함께 쓴다. +1개월 복귀의 첫 구매월은 **2019년 관측 첫 구매월**이며 실제 생애 첫 구매월로 확인된 값은 아니다. 등급별 경과월 재구매율의 분모는 그 등급에서 해당 경과월을 관찰할 수 있는 고객 수이고, 등급별 코호트 리텐션의 분모는 그 등급·그 첫 구매월의 고객 수다.
 
-🔗 **[Tableau Public에서 대시보드 보기](https://public.tableau.com/app/profile/.16528220/viz/_17872369187540/01)**
+## 실행
 
-### 1. 매출·리텐션
+`data/`에 원천 CSV 5개를 둔 뒤, 프로젝트 루트에서 `python scripts/run_pipeline.py`를 실행한다. 스크립트는 최종 노트북 02→03→04를 순서대로 실행한다. `python scripts/run_pipeline.py --dry-run`으로 대상 파일과 명령을 먼저 확인할 수 있다. Python 패키지는 `requirements.txt`에 기록했다.
 
-[![매출·리텐션 대시보드](<assets/01 · 고객·매출 구조.png>)](https://public.tableau.com/app/profile/.16528220/viz/_17872369187540/01)
+노트북은 CSV와 Python만으로 실행된다. MySQL 적재가 필요한 경우 02의 `RUN_MYSQL_LOAD`를 `True`로 설정하고 `.env`에 접속 정보를 둔다. 적재 후 [최종 SQL](sql/README.md)로 데이터 구성과 분석 수치를 조회·검산할 수 있다. Tableau용 CSV는 `python tableau/export_csv.py`로 생성한다. 이 명령은 02의 전처리와 03·04의 필요한 분석 셀을 재사용하며 MySQL 적재가 필요 없다. 실행 순서와 데이터 계약은 [Tableau CSV 안내](tableau/README.md)를 따른다.
 
-### 2. 등급·세그먼트
+## Tableau와 해석 범위
 
-[![등급·세그먼트 대시보드](<assets/02 · 세그먼트 우선순위.png>)](https://public.tableau.com/app/profile/.16528220/viz/_17872369187540/01)
+[Tableau Public 단일 페이지](https://public.tableau.com/app/profile/thkim530/viz/_17915706916830/ONEPAGE)가 이 분석의 최종 대시보드다. 전체 고객 수, 구매 공백 90일 초과 비율, 첫 구매 다음 달 재구매율, Platinum·Diamond 상품매출 비중을 KPI로 두고, 가치 등급을 고르면 KPI와 코호트 재구매율, 행동 세그먼트 분포가 함께 반응한다. [CSV 추출 코드](tableau/export_csv.py)가 현재 노트북의 분석 결과로 대시보드 소스를 만들고, [MySQL 뷰](tableau/tableau_views.sql)는 SQL 조회용으로 남겨 두었다. 로컬 워크북과 공개 화면은 CSV를 다시 추출한 뒤 Tableau에서 갱신한다. 계산 필드·필터·액션은 [Tableau CSV 안내](tableau/README.md)에 정리했다.
 
-### 3. 액션·실험
-
-[![액션·실험 대시보드](<assets/03 · 리텐션·실험.png>)](https://public.tableau.com/app/profile/.16528220/viz/_17872369187540/01)
-
-**주요 인터랙션**
-- 상단 내비게이션으로 매출·리텐션, 등급·세그먼트, 액션·실험 화면을 이동한다.
-- 카테고리 매출 구성을 선택하면 해당 카테고리의 매출 상위 제품 5개가 갱신된다.
-- 등급·세그먼트 선택을 통해 고객 가치와 행동 차이를 비교하고 실험 대상을 확인한다.
-
-대시보드 산출용 CSV와 워크북은 로컬 작업 산출물로 관리하며, 공개 저장소에는 데이터 소스 구성 코드 중심으로 남긴다.
-
-| 파일 | 역할 |
-|------|------|
-| [`tableau/tableau_views.sql`](tableau/tableau_views.sql) | Tableau용 고객·주문·월별 뷰 정의 |
-| [`tableau/export_csv.py`](tableau/export_csv.py) | Tableau 입력용 CSV 추출 (등급별 코호트 포함) |
-
----
-
-## 폴더 구조
-
-```text
-dacon_e_commerce/
-├── README.md
-├── docs/           # RFM 방법론·SQL/Python 역할 분리
-├── notebooks/      # 00-08 분석 노트북
-├── sql/            # 01-07 분석 쿼리
-├── tableau/        # Tableau 데이터 소스 구성 코드
-└── data/           # 원본 CSV, 저장소 제외
-```
-
----
-
-## 데이터 개요
-
-| 항목 | 내용 |
-|------|------|
-| 데이터 출처 | [Dacon 이커머스 데이터셋](https://dacon.io/competitions/official/236222/data) |
-| 분석 기간 | 2019-01-01 ~ 2019-12-31 |
-| 고객 수 | 1,468명 |
-| 거래 원천 | 온라인 주문, 고객 정보, 할인 정보, 마케팅 비용, 세금 정보 |
-| 금액 단위 | 달러($) |
-
-| 파일 | 행 수 | 주요 컬럼 |
-|------|------:|----------|
-| `Onlinesales_info.csv` | 52,924 | 고객ID, 거래ID, 거래날짜, 제품카테고리, 수량, 평균금액, 배송료, 쿠폰상태 |
-| `Customer_info.csv` | 1,468 | 고객ID, 성별, 고객지역, 가입기간 |
-| `Discount_info.csv` | 204 | 월, 제품카테고리, 쿠폰코드, 할인율 |
-| `Marketing_info.csv` | 365 | 날짜, 오프라인비용, 온라인비용 |
-| `Tax_info.csv` | 20 | 제품카테고리, GST |
-
-> 원본 CSV, 로컬 환경 변수, Tableau 추출 CSV, Tableau 워크북은 공개 저장소에 포함하지 않는다.
-
----
-
-## 핵심 인사이트
-
-1. **매출은 소수 카테고리와 상위 고객군에 집중되어 있다** - Nest-USA 단일 카테고리가 전체 매출의 약 54%를 차지하고, Diamond/Platinum은 전체 고객의 약 14%지만 매출의 약 48%를 담당한다. ([01 EDA](notebooks/01_eda.ipynb), [03 RFM](notebooks/03_rfm_segmentation.ipynb))
-2. **첫 구매 이후 이탈 방어가 핵심 과제다** - 전체 코호트 리텐션은 낮고, +1개월 복귀율이 전 구간에서 낮게 나타난다. ([02 Retention](notebooks/02_retention.ipynb))
-3. **고객 가치는 Recency만으로 설명되지 않는다** - Silver, Gold, Platinum에서 최근 구매가 줄어든 고객 중에도 구매금액이 높은 고객군이 확인된다. ([05 Silver](notebooks/05_segment_silver.ipynb), [06 Gold](notebooks/06_segment_gold.ipynb), [07 Diamond·Platinum](notebooks/07_segment_diamond_platinum.ipynb))
-4. **등급별 관리 질문이 다르다** - Bronze는 재활성화, Silver는 Gold 전환, Gold는 이탈 방어와 Platinum 전환, Diamond/Platinum은 유지 전략이 핵심이다. ([04 Bronze](notebooks/04_segment_bronze.ipynb), [05 Silver](notebooks/05_segment_silver.ipynb), [06 Gold](notebooks/06_segment_gold.ipynb), [07 Diamond·Platinum](notebooks/07_segment_diamond_platinum.ipynb))
-5. **단일 캠페인보다 세그먼트별 타이밍 분리가 필요하다** - 이탈 시점과 전환 가능성이 등급·세그먼트마다 다르게 나타난다. ([04 Bronze](notebooks/04_segment_bronze.ipynb), [05 Silver](notebooks/05_segment_silver.ipynb), [06 Gold](notebooks/06_segment_gold.ipynb))
-
----
-
-## 추천 액션
-
-분석 결과를 등급·세그먼트별 상태에 맞춘 실행 우선순위로 정리했다. 전체 고객 대상 일괄 캠페인보다 메시지·타이밍·혜택을 분리하는 방향이 적합하다.
-
-| 우선순위 | 대상 | 액션 방향 |
-|----------|------|-----------|
-| 1 | 신규·Bronze 고객 | 첫 구매 후 14-30일 내 2차 구매 리마인더 |
-| 2 | Bronze 휴면 고객 | 마지막 구매 후 90-150일 구간 재활성화 캠페인 |
-| 3 | Silver 잠재 충성 고객 | Gold 전환 진행률 알림과 F/M 부스터 |
-| 4 | Gold 이탈 위험군 | 7-8월 이탈 집중 전 선제 접촉 |
-| 5 | Platinum 이탈 조짐 고객 | 과거 구매 품목 기반 개인화 재참여 |
-| 6 | Diamond 고객 | 할인보다 전용 혜택과 등급 유지 경험 강화 |
-
-등급별 상세 근거는 심층 분석 노트북([04 Bronze](notebooks/04_segment_bronze.ipynb) · [05 Silver](notebooks/05_segment_silver.ipynb) · [06 Gold](notebooks/06_segment_gold.ipynb) · [07 Diamond·Platinum](notebooks/07_segment_diamond_platinum.ipynb))에, 전체 요약은 [08 프로젝트 요약](notebooks/08_project_summary.ipynb)에 정리했다.
-
----
-
-## 분석 구조
-
-| 번호 | 노트북 | 내용 |
-|------|--------|------|
-| 00 | [`00_etl_pipeline.ipynb`](notebooks/00_etl_pipeline.ipynb) | 원본 5개 테이블 정제, 조인, `orders_master` 생성 |
-| 01 | [`01_eda.ipynb`](notebooks/01_eda.ipynb) | 매출, 카테고리, 고객, 쿠폰, 마케팅, 지역, 요일, 장바구니 분석 |
-| 02 | [`02_retention.ipynb`](notebooks/02_retention.ipynb) | 코호트 리텐션, 마케팅 비용, 카테고리별 재구매율 |
-| 03 | [`03_rfm_segmentation.ipynb`](notebooks/03_rfm_segmentation.ipynb) | RFM 점수화, PCA 가중치, 등급/세그먼트 배정 |
-| 04 | [`04_segment_bronze.ipynb`](notebooks/04_segment_bronze.ipynb) | Bronze 고객 재활성화와 Silver 전환 가능성 |
-| 05 | [`05_segment_silver.ipynb`](notebooks/05_segment_silver.ipynb) | Silver 고객 이탈 구조와 Gold 전환 가능성 |
-| 06 | [`06_segment_gold.ipynb`](notebooks/06_segment_gold.ipynb) | Gold 고객 이탈 위험과 Platinum 전환 경로 |
-| 07 | [`07_segment_diamond_platinum.ipynb`](notebooks/07_segment_diamond_platinum.ipynb) | Diamond/Platinum 고객 재구매 패턴과 유지 전략 |
-| 08 | [`08_project_summary.ipynb`](notebooks/08_project_summary.ipynb) | 파일별 핵심 인사이트·등급별 액션 요약 |
-
-**워크플로**: Python에서 정제·점수화·시각화를 수행하고, SQL은 분석용 조회·집계·등급/세그먼트 분류를 담당한다. 노트북은 `load_queries()`로 `sql/` 폴더의 쿼리를 이름 호출한다.
-
-RFM 점수화와 등급 기준은 [`docs/methodology.md`](docs/methodology.md), SQL/Python 역할 분리는 [`docs/sql_workflow.md`](docs/sql_workflow.md)에 정리했다.
-
----
-
-## 기술 스택
-
-![Python](https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white)
-![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=flat-square&logo=mysql&logoColor=white)
-![Tableau](https://img.shields.io/badge/Tableau-E97627?style=flat-square&logo=tableau&logoColor=white)
-
----
-
-## 열람 안내
-
-원본 데이터와 Tableau 산출 CSV는 공개 저장소에 포함하지 않는다.
-
-- 주요 분석 결과는 렌더된 노트북에서 확인할 수 있다.
-- 01-07 분석에서 사용한 SQL 쿼리는 [`sql/`](sql/) 폴더에 분리했다.
-- RFM 점수화, 등급 기준, SQL/Python 역할 분리는 [`docs/`](docs/)에서 확인할 수 있다.
-- 전체 요약은 [`notebooks/08_project_summary.ipynb`](notebooks/08_project_summary.ipynb)에 정리했다.
-
----
-
-## 데이터 한계
-
-- 2019년 1개년 데이터이므로 계절성 반복 여부를 단정하기 어렵다.
-- Dacon 제공 데이터셋 특성상 실제 서비스 로그와 동일한 운영 환경을 완전히 반영한다고 보기는 어렵다.
-- 캠페인 효율은 실제 발송 비용, 마진, 전환율이 포함된 실험 데이터가 있어야 정밀하게 평가할 수 있다.
-- RFM 등급은 고객 행동을 설명하는 운영 기준이며, 최종 캠페인 우선순위는 예상 구매금액·재방문 가능성·비용을 함께 고려해야 한다.
+2019년 이전·이후의 구매 이력과 실제 캠페인 노출·통제군·비용·마진이 없다. 따라서 이 분석의 재참여 대상은 후속 실험 후보이며, 접촉 효과·ROI·최적 시점은 측정하지 않았다. 원천 CSV와 Tableau 추출물은 공개 저장소에 포함하지 않는다.

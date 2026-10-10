@@ -42,10 +42,11 @@ tableau/*.csv
 *.twbr
 
 # Local portfolio build helpers and generated artifacts
+/.archive/
 /notion_img/
 /tableau/p[1-4].png
-/requirements.txt
-/scripts/
+/scripts/*
+!/scripts/run_pipeline.py
 /p[1-4].png
 /tableau/.work_*/
 /tableau/BUILD_GUIDE.md
@@ -54,3 +55,9 @@ tableau/*.csv
 /tableau/pipeline_metadata.json
 /tableau/assets/action_cards/build_experiment_diagrams.py
 /tableau/assets/action_cards/p*_flow*.png
+
+# Notion 작업용 로컬 초안
+/notion_portfolio_*.md
+
+# 대시보드 캡처 (저장소에 포함하지 않음)
+/tableau/*.png
