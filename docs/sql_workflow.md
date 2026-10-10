@@ -26,4 +26,4 @@ R·F·M 점수, PCA 가중치, 등급·세그먼트는 노트북에서 만든다
 
 프로젝트 루트에서 `python scripts/run_pipeline.py`를 실행하면 노트북 02→03→04가 순서대로 실행된다. `--dry-run`은 실행 대상만 확인한다. MySQL 적재는 노트북의 `RUN_MYSQL_LOAD` 설정에 따른다.
 
-Tableau CSV는 프로젝트 루트에서 `python tableau/export_csv.py`를 실행해 생성한다. 추출 코드는 최종 02 노트북의 Python 분석 테이블과 03·04의 필요한 셀을 이용한다. MySQL 적재는 필요하지 않으며, 이미 적재한 DB와 대조하려면 `--verify-mysql`을 추가한다. [기존 Tableau 뷰](../tableau/tableau_views.sql)는 과거 MySQL 추출 방식을 보관한 파일이다. 주문 수는 고객ID와 거래ID의 조합으로 세고, 주문라인 CSV의 `고객주문키`를 Tableau 계산에 사용한다. CSV 계약과 워크북 수정 사항은 [Tableau 안내](../tableau/README.md)를 참고한다.
+Tableau CSV는 프로젝트 루트에서 `python tableau/export_csv.py`를 실행해 생성한다. 추출 코드는 최종 02 노트북의 Python 분석 테이블과 03·04의 필요한 셀을 이용한다. MySQL 적재는 필요하지 않으며, 이미 적재한 DB와 대조하려면 `--verify-mysql`을 추가한다. 주문 수는 고객ID와 거래ID의 조합으로 세고, 주문라인 CSV의 `고객주문키`를 Tableau 계산에 사용한다. CSV 계약과 워크북 수정 사항은 [Tableau 안내](../tableau/README.md)를 참고한다.
